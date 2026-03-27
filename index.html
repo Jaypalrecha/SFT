@@ -712,132 +712,111 @@ async function syncFromSheets() {
   const SHEET_ID = getSheetId();
   const API_KEY  = getApiKey();
 
-  if (!SHEET_ID) {
-    openSettingsModal();
-    return;
-  }
-  if (!API_KEY) {
-    openSettingsModal();
-    return;
-  }
+  if (!SHEET_ID) { openSettingsModal(); return; }
+  if (!API_KEY)  { openSettingsModal(); return; }
 
   setSyncStatus('SYNCING...', null);
 
   try {
     const BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
-    // 1. Fetch all tab names from spreadsheet metadata
+    // ── 1. Get all tab names ─────────────────────────────────────────────────
     const metaRes = await fetch(`${BASE}/${SHEET_ID}?key=${API_KEY}&fields=sheets.properties.title`);
     if (!metaRes.ok) {
       const err = await metaRes.json().catch(() => ({}));
-      throw new Error((err.error && err.error.message) || ('HTTP ' + metaRes.status + ' — Check your SHEET_ID and API_KEY, and ensure the sheet is shared as "Anyone with the link → Viewer"'));
+      throw new Error((err.error && err.error.message) || 'HTTP ' + metaRes.status + ' — Check SHEET_ID, API_KEY and sharing settings (Anyone with link → Viewer)');
     }
     const meta = await metaRes.json();
     const tabs = meta.sheets.map(s => s.properties.title);
 
-    // ── STEP 1: Read CONFIG tab for capital values ───────────────────────────
-    const capitalMap = {}; // key: "accId__stratName" → capital amount
-    const configTab = tabs.find(t => t.toUpperCase() === 'CONFIG');
-    if (configTab) {
-      const cfgRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(configTab)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`);
+    // ── 2. Read CONFIG tab → build capitalMap ────────────────────────────────
+    const capitalMap    = {};
+    const tabMap        = getTabMap();
+    const norm          = s => String(s||'').trim().toUpperCase().replace(/[\s\-_()\/#₹]+/g,'');
+    const configTabName = tabs.find(t => t.toUpperCase() === 'CONFIG');
+
+    if (configTabName) {
+      const cfgRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(configTabName)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`);
       if (cfgRes.ok) {
-        const cfgJson = await cfgRes.json();
-        const cfgRows = sheetsRowsToObjects(cfgJson.values);
-        const tabMap  = getTabMap();
-        cfgRows.forEach(row => {
-          const normalize = s => String(s||'').trim().toUpperCase().replace(/[\s\-_()\/#₹]+/g,'');
-          // Flexible matching — works with any reasonable column name
-          const stratKey = Object.keys(row).find(k => normalize(k).includes('STRAT'));
-          const capKey   = Object.keys(row).find(k => normalize(k).includes('CAPITAL'));
-          const tabKey   = Object.keys(row).find(k =>
-            normalize(k).includes('SHEETTAB') || normalize(k).includes('TABNAME') ||
-            normalize(k).includes('SHEETNAME') || normalize(k) === 'TAB'
-          );
+        const cfgData = await cfgRes.json();
+        const cfgRows = sheetsRowsToObjects(cfgData.values || []);
+        cfgRows.forEach(function(row) {
+          var keys     = Object.keys(row);
+          var stratKey = keys.find(function(k){ return norm(k).includes('STRAT'); });
+          var capKey   = keys.find(function(k){ return norm(k).includes('CAPITAL'); });
+          var tabKey   = keys.find(function(k){ return norm(k).includes('TAB') || norm(k).includes('SHEET'); });
           if (!stratKey || !capKey) return;
-          const stratName = String(row[stratKey]||'').trim();
-          const capital   = parseFloat(String(row[capKey]||'').replace(/[₹,\s]/g,'')) || 0;
-          const tabName   = tabKey ? String(row[tabKey]||'').trim() : '';
-          if (!stratName || !capital) return;
-          const accId = Object.keys(tabMap).find(
-            k => tabMap[k].trim().toLowerCase() === tabName.toLowerCase()
-          );
-          if (accId && stratName && capital > 0) {
-            const safeId = 'sub_gs_' + accId + '_' + stratName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
-            capitalMap[safeId] = capital;
+          var sName   = String(row[stratKey]||'').trim();
+          var cap     = parseFloat(String(row[capKey]||'').replace(/[₹,\s]/g,'')) || 0;
+          var tabName = tabKey ? String(row[tabKey]||'').trim() : '';
+          if (!sName || !cap) return;
+          var aId = Object.keys(tabMap).find(function(k){
+            return tabMap[k].trim().toLowerCase() === tabName.toLowerCase();
+          });
+          if (aId) {
+            var sid = 'sub_gs_' + aId + '_' + sName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+            capitalMap[sid] = cap;
           }
         });
       }
     }
 
-    // ── STEP 2: Process trade tabs ───────────────────────────────────────────
-    let synced = 0;
-    const updatedAccIds = new Set();
+    // ── 3. Process each trade tab ────────────────────────────────────────────
+    var synced        = 0;
+    var updatedAccIds = new Set();
 
-    for (const tabName of tabs) {
-      const { accId, stratName } = parseTabName(tabName);
-      if (!accId || !ACCOUNTS.find(a => a.id === accId)) continue;
+    for (var ti = 0; ti < tabs.length; ti++) {
+      var tabName = tabs[ti];
+      if (tabName.toUpperCase() === 'CONFIG') continue;
 
-      // Fetch tab data
-      const dataRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
+      var parsed = parseTabName(tabName);
+      var accId  = parsed.accId;
+      var stratName = parsed.stratName;
+      if (!accId || !ACCOUNTS.find(function(a){ return a.id === accId; })) continue;
+
+      var dataRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
       if (!dataRes.ok) continue;
-      const dataJson = await dataRes.json();
-      const raw = sheetsRowsToObjects(dataJson.values);
+      var dataJson = await dataRes.json();
+      var raw = sheetsRowsToObjects(dataJson.values || []);
       if (!raw || raw.length === 0) continue;
 
-      // ── DETECT MODE ──────────────────────────────────────────────────────────
-      // If any row has a non-empty "Strategy" column → split by that column
-      // Otherwise treat the whole tab as one strategy (existing behaviour)
-      const normalize = s => String(s||'').trim().toUpperCase().replace(/[\s\-_\/]+/g,'');
-      const strategyColKey = Object.keys(raw[0] || {}).find(k => normalize(k) === 'STRATEGY' || normalize(k) === 'STRATEGYNAME' || normalize(k) === 'STRAT');
-      const hasStrategyCol = strategyColKey && raw.some(r => String(r[strategyColKey]||'').trim() !== '');
+      // Detect STRATEGY column
+      var rawKeys      = Object.keys(raw[0] || {});
+      var stratColKey  = rawKeys.find(function(k){ var n=norm(k); return n==='STRATEGY'||n==='STRAT'||n==='STRATEGYNAME'; });
+      var hasStratCol  = stratColKey && raw.some(function(r){ return String(r[stratColKey]||'').trim() !== ''; });
 
-      if (hasStrategyCol) {
-        // ── MULTI-STRATEGY MODE: split rows by Strategy column value ──────────
-        const groups = {};
-        raw.forEach(row => {
-          const sName = String(row[strategyColKey]||'').trim() || 'Main';
+      if (hasStratCol) {
+        // Split by strategy column
+        var groups = {};
+        raw.forEach(function(row) {
+          var sName = String(row[stratColKey]||'').trim() || 'Main';
           if (!groups[sName]) groups[sName] = [];
           groups[sName].push(row);
         });
-
-        // Clear existing google-synced strategies for this account
-        // (so removed strategies don't linger)
-        strategys[accId] = strategys[accId].filter(s => !s.id.startsWith('sub_gs_' + accId + '_'));
-
-        Object.entries(groups).forEach(([sName, rows]) => {
-          const safeId = 'sub_gs_' + accId + '_' + sName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
-          let sub = strategys[accId].find(s => s.id === safeId);
-          if (!sub) {
-            sub = { id: safeId, name: sName, trades: [], capital: 0, rawData: null };
-            strategys[accId].push(sub);
-          }
-          // Use capital from CONFIG tab if available, else keep existing
-          if (capitalMap[safeId]) sub.capital = capitalMap[safeId];
+        strategys[accId] = strategys[accId].filter(function(s){ return !s.id.startsWith('sub_gs_' + accId + '_'); });
+        Object.keys(groups).forEach(function(sName) {
+          var rows  = groups[sName];
+          var sid   = 'sub_gs_' + accId + '_' + sName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+          var sub   = strategys[accId].find(function(s){ return s.id === sid; });
+          if (!sub) { sub = { id:sid, name:sName, trades:[], capital:0, rawData:null }; strategys[accId].push(sub); }
+          if (capitalMap[sid]) sub.capital = capitalMap[sid];
           sub.rawData = rows;
-          const key = getSubKey(accId, sub.id);
-          if (!accountData[key]) accountData[key] = { trades: [], capital: sub.capital || 0, rawData: null };
+          var key = getSubKey(accId, sid);
+          if (!accountData[key]) accountData[key] = { trades:[], capital:sub.capital||0, rawData:null };
           accountData[key].capital = sub.capital || accountData[key].capital || 0;
           accountData[key].rawData = rows;
           if (!charts[key]) charts[key] = {};
           parseAndStore(rows, key);
         });
-
       } else {
-        // ── SINGLE-STRATEGY MODE: whole tab = one strategy ───────────────────
-        // Tab name suffix e.g. "JAY MAIN ALGO - MACD" → stratName = "MACD"
-        const safeId = 'sub_gs_' + accId + '_' + stratName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
-
-        // Only clear this specific strategy (not others in the account)
-        strategys[accId] = strategys[accId].filter(s => s.id !== safeId || s.name === stratName);
-
-        let sub = strategys[accId].find(s => s.id === safeId || s.name === stratName);
-        if (!sub) {
-          sub = { id: safeId, name: stratName, trades: [], capital: 0, rawData: null };
-          strategys[accId].push(sub);
-        }
+        // Whole tab = one strategy
+        var sid  = 'sub_gs_' + accId + '_' + stratName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+        var sub  = strategys[accId].find(function(s){ return s.id===sid||s.name===stratName; });
+        if (!sub) { sub = { id:sid, name:stratName, trades:[], capital:0, rawData:null }; strategys[accId].push(sub); }
+        if (capitalMap[sid]) sub.capital = capitalMap[sid];
         sub.rawData = raw;
-        const key = getSubKey(accId, sub.id);
-        if (!accountData[key]) accountData[key] = { trades: [], capital: sub.capital || 0, rawData: null };
+        var key = getSubKey(accId, sid);
+        if (!accountData[key]) accountData[key] = { trades:[], capital:sub.capital||0, rawData:null };
         accountData[key].capital = sub.capital || accountData[key].capital || 0;
         accountData[key].rawData = raw;
         if (!charts[key]) charts[key] = {};
@@ -848,28 +827,27 @@ async function syncFromSheets() {
       synced++;
     }
 
-    // Rebuild sub-tabs + auto-activate for all updated accounts
-    updatedAccIds.forEach(accId => {
-      const bar = document.getElementById('sub-tabs-' + accId);
+    // ── 4. Refresh UI ────────────────────────────────────────────────────────
+    updatedAccIds.forEach(function(accId) {
+      var bar = document.getElementById('sub-tabs-' + accId);
       if (bar) renderSubTabs(accId);
-      // If this account's page is currently active, re-switch to refresh the view
-      const subs = strategys[accId];
+      var subs = strategys[accId];
       if (subs && subs.length > 0) {
-        const activeSub = currentSub[accId];
-        if (activeSub && activeSub !== 'combined') {
-          const sub = subs.find(s => s.id === activeSub);
+        var active = currentSub[accId];
+        if (active && active !== 'combined') {
+          var sub = subs.find(function(s){ return s.id === active; });
           if (sub) switchSubAccount(accId, sub.id);
-        } else if (!activeSub) {
+        } else if (!active) {
           switchSubAccount(accId, subs[0].id);
         }
       }
     });
 
     renderOverview();
-    setSyncStatus('✓ SYNCED ' + synced + ' SHEET' + (synced !== 1 ? 'S' : ''), false);
+    setSyncStatus('✓ SYNCED ' + synced + (synced !== 1 ? ' SHEETS' : ' SHEET'), false);
     setTimeout(resetSyncBtn, 3500);
 
-  } catch (err) {
+  } catch(err) {
     setSyncStatus('✗ SYNC FAILED', true);
     setTimeout(resetSyncBtn, 3500);
     alert('Sync error:\n\n' + err.message);
