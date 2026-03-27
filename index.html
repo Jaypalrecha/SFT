@@ -770,6 +770,7 @@ async function syncFromSheets() {
     }
 
     // ── STEP 2: Process trade tabs ───────────────────────────────────────────
+    let synced = 0;
     const updatedAccIds = new Set();
 
     for (const tabName of tabs) {
