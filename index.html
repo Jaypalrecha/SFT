@@ -735,7 +735,41 @@ async function syncFromSheets() {
     const meta = await metaRes.json();
     const tabs = meta.sheets.map(s => s.properties.title);
 
-    let synced = 0;
+    // ── STEP 1: Read CONFIG tab for capital values ───────────────────────────
+    const capitalMap = {}; // key: "accId__stratName" → capital amount
+    const configTab = tabs.find(t => t.toUpperCase() === 'CONFIG');
+    if (configTab) {
+      const cfgRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(configTab)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE`);
+      if (cfgRes.ok) {
+        const cfgJson = await cfgRes.json();
+        const cfgRows = sheetsRowsToObjects(cfgJson.values);
+        const tabMap  = getTabMap();
+        cfgRows.forEach(row => {
+          const normalize = s => String(s||'').trim().toUpperCase().replace(/[\s\-_()\/#₹]+/g,'');
+          // Flexible matching — works with any reasonable column name
+          const stratKey = Object.keys(row).find(k => normalize(k).includes('STRAT'));
+          const capKey   = Object.keys(row).find(k => normalize(k).includes('CAPITAL'));
+          const tabKey   = Object.keys(row).find(k =>
+            normalize(k).includes('SHEETTAB') || normalize(k).includes('TABNAME') ||
+            normalize(k).includes('SHEETNAME') || normalize(k) === 'TAB'
+          );
+          if (!stratKey || !capKey) return;
+          const stratName = String(row[stratKey]||'').trim();
+          const capital   = parseFloat(String(row[capKey]||'').replace(/[₹,\s]/g,'')) || 0;
+          const tabName   = tabKey ? String(row[tabKey]||'').trim() : '';
+          if (!stratName || !capital) return;
+          const accId = Object.keys(tabMap).find(
+            k => tabMap[k].trim().toLowerCase() === tabName.toLowerCase()
+          );
+          if (accId && stratName && capital > 0) {
+            const safeId = 'sub_gs_' + accId + '_' + stratName.replace(/[^a-zA-Z0-9]/g,'_').toLowerCase();
+            capitalMap[safeId] = capital;
+          }
+        });
+      }
+    }
+
+    // ── STEP 2: Process trade tabs ───────────────────────────────────────────
     const updatedAccIds = new Set();
 
     for (const tabName of tabs) {
@@ -743,7 +777,7 @@ async function syncFromSheets() {
       if (!accId || !ACCOUNTS.find(a => a.id === accId)) continue;
 
       // Fetch tab data
-      const dataRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}`);
+      const dataRes = await fetch(`${BASE}/${SHEET_ID}/values/${encodeURIComponent(tabName)}?key=${API_KEY}&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING`);
       if (!dataRes.ok) continue;
       const dataJson = await dataRes.json();
       const raw = sheetsRowsToObjects(dataJson.values);
@@ -753,7 +787,7 @@ async function syncFromSheets() {
       // If any row has a non-empty "Strategy" column → split by that column
       // Otherwise treat the whole tab as one strategy (existing behaviour)
       const normalize = s => String(s||'').trim().toUpperCase().replace(/[\s\-_\/]+/g,'');
-      const strategyColKey = Object.keys(raw[0] || {}).find(k => normalize(k) === 'STRATEGY');
+      const strategyColKey = Object.keys(raw[0] || {}).find(k => normalize(k) === 'STRATEGY' || normalize(k) === 'STRATEGYNAME' || normalize(k) === 'STRAT');
       const hasStrategyCol = strategyColKey && raw.some(r => String(r[strategyColKey]||'').trim() !== '');
 
       if (hasStrategyCol) {
@@ -776,6 +810,8 @@ async function syncFromSheets() {
             sub = { id: safeId, name: sName, trades: [], capital: 0, rawData: null };
             strategys[accId].push(sub);
           }
+          // Use capital from CONFIG tab if available, else keep existing
+          if (capitalMap[safeId]) sub.capital = capitalMap[safeId];
           sub.rawData = rows;
           const key = getSubKey(accId, sub.id);
           if (!accountData[key]) accountData[key] = { trades: [], capital: sub.capital || 0, rawData: null };
