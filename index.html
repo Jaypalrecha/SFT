@@ -1229,9 +1229,12 @@ function switchSubAccount(accId, subId) {
     renderStats(key);
     renderTable(key);
     renderCharts(key);
-    document.getElementById('charts-' + key).style.display = 'block';
-    document.getElementById('table-section-' + key).style.display = 'block';
-    document.getElementById('capital-' + key).value = sub.capital || '';
+    const _ce = document.getElementById('charts-' + key);
+    const _te = document.getElementById('table-section-' + key);
+    const _cap = document.getElementById('capital-' + key);
+    if (_ce)  _ce.style.display  = 'block';
+    if (_te)  _te.style.display  = 'block';
+    if (_cap) _cap.value = sub.capital || '';
   }
 }
 
@@ -1758,8 +1761,10 @@ function parseAndStore(raw, id) {
   renderStats(id);
   renderTable(id);
   renderCharts(id);
-  document.getElementById(`charts-${id}`).style.display = 'block';
-  document.getElementById(`table-section-${id}`).style.display = 'block';
+  const chartsEl = document.getElementById(`charts-${id}`);
+  const tableEl  = document.getElementById(`table-section-${id}`);
+  if (chartsEl) chartsEl.style.display = 'block';
+  if (tableEl)  tableEl.style.display  = 'block';
 }
 
 // ===== STATS =====
