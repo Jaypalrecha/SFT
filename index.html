@@ -1685,30 +1685,64 @@ function parseAndStore(raw, id) {
   const _accId = id.split('__')[0];
   const acc = ACCOUNTS.find(a => a.id === _accId) || ACCOUNTS[0];
 
+  // ── SMART NUMBER PARSER ──────────────────────────────────────────────────
+  // Handles: ₹14,008.2 / ₹ 3,00,000 / 14008.2 / "3,00,000" / plain numbers
+  function cleanNum(val) {
+    if (val === null || val === undefined || val === '') return 0;
+    const s = String(val).replace(/₹/g,'').replace(/,/g,'').replace(/\s/g,'').trim();
+    return parseFloat(s) || 0;
+  }
+
+  // ── SMART DATE PARSER ────────────────────────────────────────────────────
+  // Handles: DD/MM/YYYY · DD-MM-YYYY · MM/DD/YYYY · JS Date objects · Excel serials
+  function cleanDate(val) {
+    if (!val) return null;
+    // Already a JS Date (from XLSX parser)
+    if (val instanceof Date) return isNaN(val) ? null : val;
+    const s = String(val).trim();
+    if (!s) return null;
+    // DD/MM/YYYY or DD-MM-YYYY
+    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmy) {
+      const d = new Date(parseInt(dmy[3]), parseInt(dmy[2])-1, parseInt(dmy[1]));
+      return isNaN(d) ? null : d;
+    }
+    // YYYY-MM-DD (ISO)
+    const iso = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (iso) {
+      const d = new Date(parseInt(iso[1]), parseInt(iso[2])-1, parseInt(iso[3]));
+      return isNaN(d) ? null : d;
+    }
+    // Fallback
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
+  }
+
   let trades = [];
   let cumPnl = 0;
   let firstAssetPrice = 0;
 
   raw.forEach((row, i) => {
-    const buyPrice    = parseFloat(get(row,'BUY PRICE','BUYPRICE','BUY')) || 0;
-    const sellPrice   = parseFloat(get(row,'SELL PRICE','SELLPRICE','SELL')) || 0;
-    const qty         = parseFloat(get(row,'QTY','QUANTITY')) || 0;
-    const charges     = parseFloat(get(row,'CHARGES','CHARGE','BROKERAGE')) || 0;
-    const capInvested = parseFloat(get(row,'CAPITAL INVESTED','CAPITALINVESTED','CAP INVESTED')) || capitalDeployed || 0;
-    const assetPrice  = parseFloat(get(row,'ASSET PRICE','ASSETPRICE','ASSET')) || 0;
+    const buyPrice    = cleanNum(get(row,'BUY PRICE','BUYPRICE','BUY'));
+    const sellPrice   = cleanNum(get(row,'SELL PRICE','SELLPRICE','SELL'));
+    const qty         = cleanNum(get(row,'QTY','QUANTITY'));
+    const charges     = cleanNum(get(row,'CHARGES','CHARGE','BROKERAGE'));
+    const capInvested = cleanNum(get(row,'CAPITAL INVESTED','CAPITALINVESTED','CAP INVESTED')) || capitalDeployed || 0;
+    const assetPrice  = cleanNum(get(row,'ASSET PRICE','ASSETPRICE','ASSET'));
 
     // Dates
-    const buyDateRaw  = get(row,'BUY DATE','BUYDATE','BUY DT');
-    const sellDateRaw = get(row,'SELL DATE','SELLDATE','SELL DT');
-    const buyDate     = buyDateRaw  ? new Date(buyDateRaw)  : null;
-    const sellDate    = sellDateRaw ? new Date(sellDateRaw) : null;
-    const holdingDays = (buyDate && sellDate && !isNaN(buyDate) && !isNaN(sellDate))
+    const buyDate     = cleanDate(get(row,'BUY DATE','BUYDATE','BUY DT'));
+    const sellDate    = cleanDate(get(row,'SELL DATE','SELLDATE','SELL DT'));
+    const holdingDays = (buyDate && sellDate)
       ? Math.max(0, Math.round((sellDate - buyDate) / 86400000)) : 0;
 
     // Core calcs
+    // For SHORT trades: profit = buy - sell (entry is sell, exit is buy)
+    const rawSide   = String(get(row,'TRADE SIDE','TRADESIDE','SIDE','BUY/SELL')||'').toUpperCase().trim();
+    const isShort   = rawSide === 'SHORT' || rawSide === 'SELL';
     const buyValue  = qty * buyPrice;
     const sellValue = qty * sellPrice;
-    const grossPnl  = sellValue - buyValue;
+    const grossPnl  = isShort ? (buyValue - sellValue) : (sellValue - buyValue);
     const netPnl    = grossPnl - charges;
 
     // Trade-level %
@@ -1719,15 +1753,13 @@ function parseAndStore(raw, id) {
     cumPnl += netPnl;
     const cumPnlPctCap = capitalDeployed > 0 ? (cumPnl / capitalDeployed * 100) : 0;
 
-    // Asset % — relative to first asset price in dataset
+    // Asset %
     if (assetPrice > 0 && firstAssetPrice === 0) firstAssetPrice = assetPrice;
     const assetPct = firstAssetPrice > 0 && assetPrice > 0
       ? ((assetPrice - firstAssetPrice) / firstAssetPrice * 100) : 0;
 
-    // Algo % — cumulative Net P&L / Capital Deployed × 100 (same as cumPnlPctCap)
-    const algoPct = cumPnlPctCap;
-
-    const tradeSide   = String(get(row,'TRADE SIDE','TRADESIDE','SIDE','BUY/SELL')).toUpperCase();
+    const algoPct     = cumPnlPctCap;
+    const tradeSide   = rawSide || '—';
     const algoWorking = acc.showAlgo ? String(get(row,'ALGO WORKING','ALGOWORKING','ALGO')).toUpperCase() : 'N/A';
     const script      = String(get(row,'SCRIPT','SYMBOL','STOCK','INSTRUMENT') || `TRADE ${i+1}`).toUpperCase();
     const uniqueCode  = String(get(row,'UNIQUE CODE','UNIQUECODE','CODE') || '');
@@ -1735,8 +1767,7 @@ function parseAndStore(raw, id) {
 
     trades.push({
       sl, uniqueCode, script, tradeSide,
-      buyDate:  buyDate  && !isNaN(buyDate)  ? buyDate  : null,
-      sellDate: sellDate && !isNaN(sellDate) ? sellDate : null,
+      buyDate, sellDate,
       holdingDays, qty, buyPrice, buyValue, sellPrice, sellValue,
       grossPnl, charges, netPnl,
       netPnlPctTrade, exposure, exposureNetPct, deployedNetPct,
