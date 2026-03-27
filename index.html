@@ -1736,13 +1736,12 @@ function parseAndStore(raw, id) {
     const holdingDays = (buyDate && sellDate)
       ? Math.max(0, Math.round((sellDate - buyDate) / 86400000)) : 0;
 
-    // Core calcs
-    // For SHORT trades: profit = buy - sell (entry is sell, exit is buy)
+    // Core calcs — P&L = (Sell Price - Buy Price) × Qty for ALL trade types
+    // User's sheet convention: Buy Price = price paid to buy, Sell Price = price received on sell
     const rawSide   = String(get(row,'TRADE SIDE','TRADESIDE','SIDE','BUY/SELL')||'').toUpperCase().trim();
-    const isShort   = rawSide === 'SHORT' || rawSide === 'SELL';
     const buyValue  = qty * buyPrice;
     const sellValue = qty * sellPrice;
-    const grossPnl  = isShort ? (buyValue - sellValue) : (sellValue - buyValue);
+    const grossPnl  = sellValue - buyValue;
     const netPnl    = grossPnl - charges;
 
     // Trade-level %
