@@ -7,193 +7,231 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
   :root{
-    --bg:#070d15;
-    --bg2:#0d1a27;
-    --bg3:#0f2133;
-    --border:#1a3050;
-    --border2:#243d5a;
-    --text:#e8f4ff;
-    --text2:#6a8ea8;
-    --text3:#3a5570;
-    --accent:#00d4ff;
-    --accent-dim:rgba(0,212,255,0.08);
-    --mono:'Space Mono',monospace;
-    --sans:'DM Sans',sans-serif;
-    --shadow:0 4px 24px rgba(0,0,0,0.5);
+    --bg:#070d15;--bg2:#0d1a27;
+    --border:#1a3050;--border2:#243d5a;
+    --text:#e8f4ff;--text2:#6a8ea8;--text3:#3a5570;
+    --accent:#00d4ff;--accent-dim:rgba(0,212,255,0.08);
+    --mono:'Space Mono',monospace;--sans:'DM Sans',sans-serif;
+    --sidebar-w:260px;
   }
-
-  html,body{
-    height:100%;
-    background:var(--bg);
-    color:var(--text);
-    font-family:var(--sans);
-    overflow:hidden;
-  }
-
-  .bg-grid{
-    position:fixed;inset:0;
-    background-image:
-      linear-gradient(rgba(0,212,255,0.04) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(0,212,255,0.04) 1px,transparent 1px);
-    background-size:40px 40px;
-    animation:gridPulse 4s ease-in-out infinite;
-    pointer-events:none;
-  }
-
-  .scan-lines{position:fixed;inset:0;pointer-events:none;overflow:hidden;}
-  .scan-line{
-    position:absolute;height:1px;width:100%;
-    background:linear-gradient(90deg,transparent,rgba(0,212,255,0.45),transparent);
-    animation:lineScan 3s linear infinite;
-  }
-  .scan-line:nth-child(1){top:20%;animation-delay:0s}
-  .scan-line:nth-child(2){top:50%;animation-delay:1s}
-  .scan-line:nth-child(3){top:80%;animation-delay:2s}
-
-  .corner{position:fixed;width:60px;height:60px;pointer-events:none;}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;}
+  .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:40px 40px;animation:gridPulse 4s ease-in-out infinite;pointer-events:none;z-index:0;}
+  .scan-lines{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0;}
+  .scan-line{position:absolute;height:1px;width:100%;background:linear-gradient(90deg,transparent,rgba(0,212,255,0.4),transparent);animation:lineScan 3s linear infinite;}
+  .scan-line:nth-child(1){top:20%;animation-delay:0s}.scan-line:nth-child(2){top:50%;animation-delay:1s}.scan-line:nth-child(3){top:80%;animation-delay:2s}
+  .corner{position:fixed;width:60px;height:60px;pointer-events:none;z-index:2;}
   .corner::before,.corner::after{content:'';position:absolute;background:var(--accent);}
-  .corner::before{width:2px;height:100%;}
-  .corner::after{width:100%;height:2px;}
-  .corner.tl{top:24px;left:24px;}
-  .corner.tr{top:24px;right:24px;transform:scaleX(-1);}
-  .corner.bl{bottom:24px;left:24px;transform:scaleY(-1);}
-  .corner.br{bottom:24px;right:24px;transform:scale(-1,-1);}
-
-  .stage{
-    position:relative;z-index:10;
-    height:100vh;
-    display:flex;flex-direction:column;
-    align-items:center;justify-content:center;
-    animation:fadeIn 1.2s ease forwards;
-  }
-
-  .logo-box{
-    width:72px;height:72px;
-    border:2px solid var(--accent);
-    display:flex;align-items:center;justify-content:center;
-    margin-bottom:32px;
-    box-shadow:0 0 32px rgba(0,212,255,0.25),inset 0 0 16px rgba(0,212,255,0.05);
-    animation:boxPulse 2.5s ease-in-out infinite;
-  }
+  .corner::before{width:2px;height:100%;}.corner::after{width:100%;height:2px;}
+  .corner.tl{top:24px;left:24px;}.corner.tr{top:24px;right:24px;transform:scaleX(-1);}
+  .corner.bl{bottom:24px;left:24px;transform:scaleY(-1);}.corner.br{bottom:24px;right:24px;transform:scale(-1,-1);}
+  #landing{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:fadeIn 1.2s ease forwards;transition:opacity 0.6s ease;}
+  #landing.hide{opacity:0;pointer-events:none;}
+  .logo-box{width:72px;height:72px;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:32px;box-shadow:0 0 32px rgba(0,212,255,0.25),inset 0 0 16px rgba(0,212,255,0.05);animation:boxPulse 2.5s ease-in-out infinite;}
   .logo-box svg{width:36px;height:36px;stroke:var(--accent);fill:none;stroke-width:1.5;}
-
-  .brand{
-    font-family:var(--mono);
-    font-size:clamp(28px,5vw,52px);
-    font-weight:700;
-    letter-spacing:0.18em;
-    color:var(--text);
-    text-transform:uppercase;
-    animation:titleGlow 2s ease-in-out infinite alternate;
-    line-height:1;
-    margin-bottom:16px;
-  }
+  .brand{font-family:var(--mono);font-size:clamp(28px,5vw,52px);font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;animation:titleGlow 2s ease-in-out infinite alternate;line-height:1;margin-bottom:16px;}
   .brand span{color:var(--accent);}
-
-  .tagline{
-    font-family:var(--sans);
-    font-size:clamp(12px,1.8vw,16px);
-    font-weight:300;
-    letter-spacing:0.22em;
-    color:var(--text2);
-    text-transform:uppercase;
-    margin-bottom:52px;
-  }
-
-  .divider{
-    width:200px;height:1px;
-    background:linear-gradient(90deg,transparent,var(--accent),transparent);
-    margin-bottom:52px;
-    opacity:0.6;
-  }
-
-  .enter-btn{
-    font-family:var(--mono);
-    font-size:12px;
-    font-weight:700;
-    letter-spacing:0.25em;
-    color:var(--bg);
-    background:var(--accent);
-    border:none;
-    padding:16px 64px;
-    cursor:pointer;
-    text-transform:uppercase;
-    transition:all 0.3s;
-    position:relative;
-    overflow:hidden;
-  }
-  .enter-btn::before{
-    content:'';position:absolute;inset:0;
-    background:linear-gradient(135deg,rgba(255,255,255,0.3),transparent);
-    transform:translateX(-100%);transition:transform 0.4s;
-  }
+  .tagline{font-family:var(--sans);font-size:clamp(12px,1.8vw,16px);font-weight:300;letter-spacing:0.22em;color:var(--text2);text-transform:uppercase;margin-bottom:52px;}
+  .divider{width:200px;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);margin-bottom:52px;opacity:0.6;}
+  .enter-btn{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:0.25em;color:var(--bg);background:var(--accent);border:none;padding:16px 64px;cursor:pointer;text-transform:uppercase;transition:all 0.3s;position:relative;overflow:hidden;}
+  .enter-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.3),transparent);transform:translateX(-100%);transition:transform 0.4s;}
   .enter-btn:hover::before{transform:translateX(100%);}
-  .enter-btn:hover{
-    transform:scale(1.05);
-    box-shadow:0 0 40px rgba(0,212,255,0.55);
-  }
-
-  .version{
-    position:fixed;bottom:28px;right:32px;
-    font-family:var(--mono);font-size:10px;
-    color:var(--text3);letter-spacing:0.12em;
-    z-index:10;
-  }
-
+  .enter-btn:hover{transform:scale(1.05);box-shadow:0 0 40px rgba(0,212,255,0.55);}
+  .version{position:fixed;bottom:28px;right:32px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:0.12em;z-index:20;}
+  #app{position:fixed;inset:0;z-index:5;display:none;}
+  #app.show{display:flex;}
+  .layout{display:flex;height:100vh;width:100%;position:relative;z-index:1;}
+  .sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:10;}
+  .sb-brand{padding:28px 24px 24px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+  .sb-logo-row{display:flex;align-items:center;gap:12px;}
+  .sb-logo-box{width:36px;height:36px;border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 14px rgba(0,212,255,0.2);}
+  .sb-logo-box svg{width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:1.5;}
+  .sb-title{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:0.12em;color:var(--text);text-transform:uppercase;}
+  .sb-title span{color:var(--accent);}
+  .sb-tagline{font-family:var(--sans);font-size:9.5px;font-weight:300;letter-spacing:0.18em;color:var(--text3);text-transform:uppercase;}
+  .sb-nav{flex:1;overflow-y:auto;padding:16px 0;scrollbar-width:none;}
+  .sb-nav::-webkit-scrollbar{display:none;}
+  .sb-section-label{font-family:var(--mono);font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;padding:12px 24px 6px;}
+  .sb-item{display:flex;align-items:center;gap:12px;padding:11px 24px;cursor:pointer;transition:all 0.2s;border-left:2px solid transparent;}
+  .sb-item:hover{background:var(--accent-dim);border-left-color:rgba(0,212,255,0.3);}
+  .sb-item.active{background:rgba(0,212,255,0.1);border-left-color:var(--accent);}
+  .sb-item-icon{width:16px;height:16px;stroke:var(--text2);fill:none;stroke-width:1.5;flex-shrink:0;transition:stroke 0.2s;}
+  .sb-item.active .sb-item-icon,.sb-item:hover .sb-item-icon{stroke:var(--accent);}
+  .sb-item-label{font-family:var(--sans);font-size:13px;font-weight:400;color:var(--text2);transition:color 0.2s;flex:1;}
+  .sb-item.active .sb-item-label,.sb-item:hover .sb-item-label{color:var(--text);}
+  .sb-divider{margin:8px 24px;height:1px;background:var(--border);}
+  .sb-footer{padding:16px 24px;border-top:1px solid var(--border);font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:0.1em;}
+  .main{flex:1;height:100vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  .main::-webkit-scrollbar{width:4px;}.main::-webkit-scrollbar-thumb{background:var(--border);}
+  .page-header{padding:40px 56px 24px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;}
+  .page-tag{font-family:var(--mono);font-size:10px;letter-spacing:0.22em;color:var(--accent);text-transform:uppercase;margin-bottom:8px;}
+  .page-title{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);letter-spacing:0.06em;text-transform:uppercase;animation:titleGlow 2s ease-in-out infinite alternate;}
+  .about-content{padding:48px 56px 64px;max-width:860px;animation:fadeIn 0.5s ease forwards;}
+  .about-headline{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text);letter-spacing:0.08em;margin-bottom:32px;line-height:1.4;}
+  .about-headline span{color:var(--accent);}
+  .about-divider{width:80px;height:2px;background:linear-gradient(90deg,var(--accent),transparent);margin-bottom:36px;}
+  .about-body{display:flex;flex-direction:column;gap:24px;}
+  .about-para{font-family:var(--sans);font-size:15px;color:var(--text2);line-height:1.85;}
+  .about-para strong{color:var(--text);font-weight:500;}
+  .about-domains{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
+  .domain-tag{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;color:var(--accent);text-transform:uppercase;border:1px solid var(--border2);padding:7px 14px;background:var(--accent-dim);transition:all 0.2s;}
+  .domain-tag:hover{border-color:var(--accent);box-shadow:0 0 12px rgba(0,212,255,0.15);}
+  .about-logo-section{margin-top:56px;padding-top:40px;border-top:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:16px;}
+  .about-logo-box{width:64px;height:64px;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 28px rgba(0,212,255,0.2),inset 0 0 12px rgba(0,212,255,0.04);animation:boxPulse 2.5s ease-in-out infinite;}
+  .about-logo-box svg{width:30px;height:30px;stroke:var(--accent);fill:none;stroke-width:1.5;}
+  .about-brand{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;animation:titleGlow 2s ease-in-out infinite alternate;}
+  .about-brand span{color:var(--accent);}
+  .about-tagline{font-family:var(--sans);font-size:11px;font-weight:300;letter-spacing:0.24em;color:var(--text3);text-transform:uppercase;}
+  .iframe-page{height:100vh;overflow:hidden;}
+  .iframe-page iframe{width:100%;height:100%;border:none;}
+  .contact-content{padding:48px 56px 64px;max-width:600px;animation:fadeIn 0.5s ease forwards;}
+  .contact-card{display:flex;flex-direction:column;gap:24px;margin-top:8px;}
+  .contact-row{display:flex;align-items:center;gap:20px;padding:20px 24px;border:1px solid var(--border);background:var(--bg2);transition:border-color 0.2s;}
+  .contact-row:hover{border-color:var(--accent);box-shadow:0 0 16px rgba(0,212,255,0.08);}
+  .contact-icon{width:36px;height:36px;border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .contact-icon svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:1.5;}
+  .contact-label{font-family:var(--mono);font-size:9px;letter-spacing:0.2em;color:var(--text3);text-transform:uppercase;margin-bottom:4px;}
+  .contact-value{font-family:var(--sans);font-size:14px;font-weight:500;color:var(--text);}
+  .contact-value a{color:var(--accent);text-decoration:none;}
+  .contact-value a:hover{text-decoration:underline;}
   @keyframes gridPulse{0%,100%{opacity:0.5}50%{opacity:1}}
   @keyframes lineScan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-  @keyframes titleGlow{
-    from{text-shadow:0 0 20px rgba(0,212,255,0.2)}
-    to{text-shadow:0 0 60px rgba(0,212,255,0.6),0 0 120px rgba(0,212,255,0.2)}
-  }
-  @keyframes boxPulse{
-    0%,100%{box-shadow:0 0 20px rgba(0,212,255,0.2),inset 0 0 10px rgba(0,212,255,0.03)}
-    50%{box-shadow:0 0 48px rgba(0,212,255,0.45),inset 0 0 20px rgba(0,212,255,0.08)}
-  }
-  @keyframes fadeIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes titleGlow{from{text-shadow:0 0 20px rgba(0,212,255,0.2)}to{text-shadow:0 0 60px rgba(0,212,255,0.6),0 0 120px rgba(0,212,255,0.2)}}
+  @keyframes boxPulse{0%,100%{box-shadow:0 0 20px rgba(0,212,255,0.2),inset 0 0 10px rgba(0,212,255,0.03)}50%{box-shadow:0 0 48px rgba(0,212,255,0.45),inset 0 0 20px rgba(0,212,255,0.08)}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:768px){:root{--sidebar-w:220px;}.page-header,.about-content,.contact-content{padding-left:24px;padding-right:24px;}}
 </style>
 </head>
 <body>
-
 <div class="bg-grid"></div>
+<div class="scan-lines"><div class="scan-line"></div><div class="scan-line"></div><div class="scan-line"></div></div>
+<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
 
-<div class="scan-lines">
-  <div class="scan-line"></div>
-  <div class="scan-line"></div>
-  <div class="scan-line"></div>
-</div>
-
-<div class="corner tl"></div>
-<div class="corner tr"></div>
-<div class="corner bl"></div>
-<div class="corner br"></div>
-
-<div class="stage">
-
+<div id="landing">
   <div class="logo-box">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <line x1="12" y1="2" x2="12" y2="5"/>
-      <rect x="10" y="5" width="4" height="7" rx="0.5"/>
-      <line x1="12" y1="12" x2="12" y2="15"/>
-      <line x1="6" y1="4" x2="6" y2="7"/>
-      <rect x="4" y="7" width="4" height="6" rx="0.5"/>
-      <line x1="6" y1="13" x2="6" y2="16"/>
-      <line x1="18" y1="6" x2="18" y2="9"/>
-      <rect x="16" y="9" width="4" height="5" rx="0.5"/>
-      <line x1="18" y1="14" x2="18" y2="17"/>
-    </svg>
+    <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="5"/><rect x="10" y="5" width="4" height="7" rx="0.5"/><line x1="12" y1="12" x2="12" y2="15"/><line x1="6" y1="4" x2="6" y2="7"/><rect x="4" y="7" width="4" height="6" rx="0.5"/><line x1="6" y1="13" x2="6" y2="16"/><line x1="18" y1="6" x2="18" y2="9"/><rect x="16" y="9" width="4" height="5" rx="0.5"/><line x1="18" y1="14" x2="18" y2="17"/></svg>
   </div>
-
   <div class="brand">SAHAJ&nbsp;<span>FINTECH</span></div>
   <div class="tagline">Pioneers in Techno-Fundamental Analysis</div>
   <div class="divider"></div>
-  <button class="enter-btn" onclick="window.location.href='model1.html'">ENTER DASHBOARD</button>
-
+  <button class="enter-btn" onclick="enterDashboard()">ENTER DASHBOARD</button>
 </div>
-
 <div class="version">v1.0 &nbsp;|&nbsp; SFT</div>
 
+<div id="app">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo-row">
+          <div class="sb-logo-box">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="5"/><rect x="10" y="5" width="4" height="7" rx="0.5"/><line x1="12" y1="12" x2="12" y2="15"/><line x1="6" y1="4" x2="6" y2="7"/><rect x="4" y="7" width="4" height="6" rx="0.5"/><line x1="6" y1="13" x2="6" y2="16"/><line x1="18" y1="6" x2="18" y2="9"/><rect x="16" y="9" width="4" height="5" rx="0.5"/><line x1="18" y1="14" x2="18" y2="17"/></svg>
+          </div>
+          <div class="sb-title">SAHAJ&nbsp;<span>FINTECH</span></div>
+        </div>
+        <div class="sb-tagline">Pioneers in Techno-Fundamental Analysis</div>
+      </div>
+      <nav class="sb-nav">
+        <div class="sb-section-label">Navigation</div>
+        <div class="sb-item active" onclick="showPage('about')" id="nav-about">
+          <svg class="sb-item-icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span class="sb-item-label">About Us</span>
+        </div>
+        <div class="sb-divider"></div>
+        <div class="sb-section-label">Models</div>
+        <div class="sb-item" onclick="showPage('model1')" id="nav-model1">
+          <svg class="sb-item-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="sb-item-label">SFT Backtest</span>
+        </div>
+        <div class="sb-item" onclick="showPage('model2')" id="nav-model2">
+          <svg class="sb-item-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="sb-item-label">SFT PMS</span>
+        </div>
+        <div class="sb-divider"></div>
+        <div class="sb-item" onclick="showPage('contact')" id="nav-contact">
+          <svg class="sb-item-icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span class="sb-item-label">Contact Me</span>
+        </div>
+      </nav>
+      <div class="sb-footer">v1.0 &nbsp;·&nbsp; SFT &nbsp;·&nbsp; 2025</div>
+    </aside>
+
+    <main class="main" id="main-content">
+      <div id="page-about">
+        <div class="page-header"><div><div class="page-tag">01 &nbsp;/&nbsp; About</div><div class="page-title">About Us</div></div></div>
+        <div class="about-content">
+          <div class="about-headline">Where <span>Intelligence</span> Meets Awareness</div>
+          <div class="about-divider"></div>
+          <div class="about-body">
+            <p class="about-para">At <strong>Sahaj Fintech</strong>, we stand at the intersection of precision, discipline, and consciousness. We are pioneers in integrating technical and fundamental analysis into a unified framework — what we call <strong>Technofundamental Investing &amp; Trading</strong>.</p>
+            <p class="about-para">Our approach goes beyond conventional market strategies. We combine macroeconomic insights, qualitative intelligence, and technical structures, all grounded in robust risk management, logic, and disciplined execution. Every decision is not just data-driven, but <strong>context-aware</strong>.</p>
+            <p class="about-para">What truly sets Sahaj Fintech apart is the foundation upon which all our analysis rests: the <strong>consciousness of the witness</strong>. By cultivating awareness beyond greed and fear, we transcend reactive decision-making and align with clarity, patience, and objectivity.</p>
+            <p class="about-para">Welcome to the future of <strong>spiritual, intelligent capital allocation</strong>.</p>
+            <p class="about-para">At Sahaj Fintech, we actively operate across multiple domains of the financial markets:</p>
+            <div class="about-domains">
+              <div class="domain-tag">Algorithmic Trading</div>
+              <div class="domain-tag">Swing Trading</div>
+              <div class="domain-tag">Long-Term Investing</div>
+              <div class="domain-tag">Mutual Funds &amp; SIPs</div>
+              <div class="domain-tag">Forex Trading</div>
+              <div class="domain-tag">Funded Prop Trading</div>
+            </div>
+          </div>
+          <div class="about-logo-section">
+            <div class="about-logo-box"><svg viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="5"/><rect x="10" y="5" width="4" height="7" rx="0.5"/><line x1="12" y1="12" x2="12" y2="15"/><line x1="6" y1="4" x2="6" y2="7"/><rect x="4" y="7" width="4" height="6" rx="0.5"/><line x1="6" y1="13" x2="6" y2="16"/><line x1="18" y1="6" x2="18" y2="9"/><rect x="16" y="9" width="4" height="5" rx="0.5"/><line x1="18" y1="14" x2="18" y2="17"/></svg></div>
+            <div class="about-brand">SAHAJ&nbsp;<span>FINTECH</span></div>
+            <div class="about-tagline">Pioneers in Techno-Fundamental Analysis</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="page-model1" class="iframe-page" style="display:none;">
+        <iframe src="SFT4_Algo%20backtesting_29.03.2026%20(3).html"></iframe>
+      </div>
+
+      <div id="page-model2" class="iframe-page" style="display:none;">
+        <iframe src="model1.html"></iframe>
+      </div>
+
+      <div id="page-contact" style="display:none;">
+        <div class="page-header"><div><div class="page-tag">04 &nbsp;/&nbsp; Contact</div><div class="page-title">Contact Me</div></div></div>
+        <div class="contact-content">
+          <div class="contact-card">
+            <div class="contact-row">
+              <div class="contact-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
+              <div><div class="contact-label">Name</div><div class="contact-value">Jay J Palrecha</div></div>
+            </div>
+            <div class="contact-row">
+              <div class="contact-icon"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.42 2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.85a16 16 0 0 0 6.29 6.29l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+              <div><div class="contact-label">Phone</div><div class="contact-value"><a href="tel:+919900675141">+91-9900675141</a></div></div>
+            </div>
+            <div class="contact-row">
+              <div class="contact-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+              <div><div class="contact-label">Email</div><div class="contact-value"><a href="mailto:Jaypalrecha@zohomail.in">Jaypalrecha@zohomail.in</a></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  const pages=['about','model1','model2','contact'];
+  function enterDashboard(){
+    document.getElementById('landing').classList.add('hide');
+    setTimeout(()=>{
+      document.getElementById('landing').style.display='none';
+      document.getElementById('app').classList.add('show');
+    },600);
+  }
+  function showPage(id){
+    pages.forEach(p=>{
+      document.getElementById('page-'+p).style.display=p===id?'':'none';
+      const nav=document.getElementById('nav-'+p);
+      if(nav)nav.classList.toggle('active',p===id);
+    });
+    document.getElementById('main-content').scrollTop=0;
+  }
+</script>
 </body>
 </html>
