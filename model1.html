@@ -650,7 +650,7 @@ table.data-table tbody tr:last-child td { border-bottom:none; }
     <div class="entry-divider"></div>
     <button class="entry-btn" onclick="enterApp()">ENTER ANALYZER</button>
   </div>
-  <div class="entry-tag"></div>
+  <div class="entry-tag">SFT &nbsp;·&nbsp; MJ FINTECH &nbsp;·&nbsp; PROPRIETARY SYSTEM</div>
 </div>
 
 <!-- MAIN APP -->
@@ -784,7 +784,9 @@ function parseTrades(rows){
     const dir=e.entry['Type'].includes('long')?'Long':'Short';
     const et=parseDate(e.entry['Date and time']),xt=parseDate(e.exit['Date and time']);
     const grossPnl=+e.exit['Net P&L INR'];
-    res.push({num:+n,direction:dir,entryTime:et,exitTime:xt,entryPrice:+e.entry['Price INR'],exitPrice:+e.exit['Price INR'],signal:e.exit['Signal'],qty:+e.entry['Position size (qty)'],value:+e.entry['Position size (value)'],grossPnl:grossPnl,pnl:grossPnl,pnlPct:+e.exit['Net P&L %'],cumPnl:+e.exit['Cumulative P&L INR'],cumPnlPct:+e.exit['Cumulative P&L %'],charges:0,durationMs:xt-et,durationDays:(xt-et)/(1000*60*60*24),win:grossPnl>0});
+    const qty = +(e.entry['Position size (qty)'] || e.entry['Size (qty)'] || 0);
+    const value = +(e.entry['Position size (value)'] || e.entry['Size (value)'] || 0);
+    res.push({num:+n,direction:dir,entryTime:et,exitTime:xt,entryPrice:+e.entry['Price INR'],exitPrice:+e.exit['Price INR'],signal:e.exit['Signal'],qty:qty,value:value,grossPnl:grossPnl,pnl:grossPnl,pnlPct:+e.exit['Net P&L %'],cumPnl:+e.exit['Cumulative P&L INR'],cumPnlPct:+e.exit['Cumulative P&L %'],charges:0,durationMs:xt-et,durationDays:(xt-et)/(1000*60*60*24),win:grossPnl>0});
   });return res;
 }
 function parseIndex(rows){
